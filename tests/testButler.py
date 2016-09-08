@@ -55,10 +55,37 @@ class GetRawTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         datadir = self.getTestDataDir()
-        self.repoPath = os.path.join(datadir, "DATA")
-        self.calibPath = os.path.join(datadir, "CALIB")
-        self.butler = dafPersist.Butler(root=self.repoPath,
-                                        calibRoot=self.calibPath)
+        # self.repoPath = os.path.join(datadir, "DATA")
+        # self.calibPath = os.path.join(datadir, "CALIB")
+        # self.butler = dafPersist.Butler(root=self.repoPath,
+        #                                 calibRoot=self.calibPath)
+
+        # todo I don't think the cfgRoot should have to be specified, but there's a bug if the arg to the
+        # RepositoryArgs is "root='swift...'"; it finds the DATA args for the CALIB root, I think in a local
+        # cache.
+        initMode = 'old'
+
+        if 'old' == initMode:
+            self.repoPath = os.path.join(datadir, "DATA")
+            self.calibPath = os.path.join(datadir, "CALIB")
+            self.butler = dafPersist.Butler(root=self.repoPath,
+                                            calibRoot=self.calibPath)
+        elif 'local' == initMode: # local Repo
+            dataRepoArgs = dafPersist.RepositoryArgs(cfgRoot=os.path.join(self.getTestDataDir(), 'DATA'),
+                                                     mode='r')
+            calibRepoArgs = dafPersist.RepositoryArgs(cfgRoot=os.path.join(self.getTestDataDir(), 'CALIB'),
+                                                      mode='r')
+            self.butler = dafPersist.Butler(inputs=(dataRepoArgs, calibRepoArgs))
+        elif 'swift' == initMode: # swift repos
+            dataRepoArgs = dafPersist.RepositoryArgs(cfgRoot='swift://npease_testdata_cfht/testdata_cfht/DATA',
+                                                     mode='r')
+            calibRepoArgs = dafPersist.RepositoryArgs(cfgRoot='swift://npease_testdata_cfht/testdata_cfht/CALIB',
+                                                      mode='r')
+            self.butler = dafPersist.Butler(inputs=(dataRepoArgs, calibRepoArgs))
+        else:
+            raise RuntimeError('unhandled init mode')
+
+
         self.size = (2112, 4644)
         self.dataId = {'visit': 1038843}
         self.filter = "i2"
@@ -83,29 +110,29 @@ class GetRawTestCase(lsst.utils.tests.TestCase):
     def tearDown(self):
         del self.butler
 
-    def assertExposure(self, exp, ccd, checkFilter=True):
-        print("dataId: ", self.dataId)
-        print("ccd: ", ccd)
-        print("width: ", exp.getWidth())
-        print("height: ", exp.getHeight())
-        print("detector name: ", exp.getDetector().getName())
-        print("filter name: ", exp.getFilter().getFilterProperty().getName())
+    # def assertExposure(self, exp, ccd, checkFilter=True):
+    #     print("dataId: ", self.dataId)
+    #     print("ccd: ", ccd)
+    #     print("width: ", exp.getWidth())
+    #     print("height: ", exp.getHeight())
+    #     print("detector name: ", exp.getDetector().getName())
+    #     print("filter name: ", exp.getFilter().getFilterProperty().getName())
 
-        self.assertEqual(exp.getWidth(), self.size[0])
-        self.assertEqual(exp.getHeight(), self.size[1])
-        self.assertEqual(exp.getDetector().getName(), "ccd%02d" % ccd)
-        if checkFilter:
-            self.assertEqual(exp.getFilter().getFilterProperty().getName(), self.filter)
+    #     self.assertEqual(exp.getWidth(), self.size[0])
+    #     self.assertEqual(exp.getHeight(), self.size[1])
+    #     self.assertEqual(exp.getDetector().getName(), "ccd%02d" % ccd)
+    #     if checkFilter:
+    #         self.assertEqual(exp.getFilter().getFilterProperty().getName(), self.filter)
 
-        if display and ccd % 18 == 0:
-            global frame
-            frame += 1
-            ccd = cameraGeom.cast_Ccd(exp.getDetector())
-            for amp in ccd:
-                amp = cameraGeom.cast_Amp(amp)
-                print(ccd.getId(), amp.getId(), amp.getDataSec().toString(),
-                      amp.getBiasSec().toString(), amp.getElectronicParams().getGain())
-            cameraGeomUtils.showCcd(ccd, ccdImage=exp, frame=frame)
+    #     if display and ccd % 18 == 0:
+    #         global frame
+    #         frame += 1
+    #         ccd = cameraGeom.cast_Ccd(exp.getDetector())
+    #         for amp in ccd:
+    #             amp = cameraGeom.cast_Amp(amp)
+    #             print(ccd.getId(), amp.getId(), amp.getDataSec().toString(),
+    #                   amp.getBiasSec().toString(), amp.getElectronicParams().getGain())
+    #         cameraGeomUtils.showCcd(ccd, ccdImage=exp, frame=frame)
 
     def getTestDataDir(self):
         try:
@@ -115,17 +142,17 @@ class GetRawTestCase(lsst.utils.tests.TestCase):
             raise unittest.SkipTest("Skipping test as testdata_cfht is not setup")
         return datadir
 
-    def testRaw(self):
-        """Test retrieval of raw image"""
-        if display:
-            global frame
-            frame += 1
-            cameraGeomUtils.showCamera(self.butler.mapper.camera, frame=frame)
+    # def testRaw(self):
+    #     """Test retrieval of raw image"""
+    #     if display:
+    #         global frame
+    #         frame += 1
+    #         cameraGeomUtils.showCamera(self.butler.mapper.camera, frame=frame)
 
-        for ccd in range(36):
-            raw = self.butler.get("raw", self.dataId, ccd=ccd, immediate=True)
+    #     for ccd in range(36):
+    #         raw = self.butler.get("raw", self.dataId, ccd=ccd, immediate=True)
 
-            self.assertExposure(raw, ccd)
+    #         self.assertExposure(raw, ccd)
 
             visitInfo = raw.getInfo().getVisitInfo()
             self.assertAlmostEqual(visitInfo.getDate().get(), self.dateAvg.get())
@@ -151,18 +178,19 @@ class GetRawTestCase(lsst.utils.tests.TestCase):
         for ccd in range(36):
             flat = self.butler.get(detrend, self.dataId, ccd=ccd, immediate=True)
 
-            self.assertExposure(flat, ccd, checkFilter=False)
+    #         self.assertExposure(flat, ccd, checkFilter=False)
 
-    def testFlat(self):
-        self.getDetrend("flat")
+    # def testFlat(self):
+    #     self.getDetrend("flat")
 
-    def testBias(self):
-        self.getDetrend("bias")
+    # def testBias(self):
+    #     self.getDetrend("bias")
 
-    def testFringe(self):
-        self.getDetrend("fringe")
+    # def testFringe(self):
+    #     self.getDetrend("fringe")
 
     def testPackageName(self):
+        import pdb; pdb.set_trace()
         name = dafPersist.Butler.getMapperClass(root=self.repoPath).packageName
         self.assertEqual(name, "obs_cfht")
 
