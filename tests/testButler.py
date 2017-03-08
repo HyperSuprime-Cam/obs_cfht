@@ -54,7 +54,6 @@ class GetRawTestCase(lsst.utils.tests.TestCase):
     """Testing butler raw image retrieval"""
 
     def setUp(self):
-        datadir = self.getTestDataDir()
         # self.repoPath = os.path.join(datadir, "DATA")
         # self.calibPath = os.path.join(datadir, "CALIB")
         # self.butler = dafPersist.Butler(root=self.repoPath,
@@ -63,28 +62,26 @@ class GetRawTestCase(lsst.utils.tests.TestCase):
         # todo I don't think the cfgRoot should have to be specified, but there's a bug if the arg to the
         # RepositoryArgs is "root='swift...'"; it finds the DATA args for the CALIB root, I think in a local
         # cache.
-        initMode = 'old'
+        initMode = 'swift'
 
         if 'old' == initMode:
+            datadir = self.getTestDataDir()
             self.repoPath = os.path.join(datadir, "DATA")
             self.calibPath = os.path.join(datadir, "CALIB")
             self.butler = dafPersist.Butler(root=self.repoPath,
                                             calibRoot=self.calibPath)
-        elif 'local' == initMode: # local Repo
-            dataRepoArgs = dafPersist.RepositoryArgs(cfgRoot=os.path.join(self.getTestDataDir(), 'DATA'),
-                                                     mode='r')
-            calibRepoArgs = dafPersist.RepositoryArgs(cfgRoot=os.path.join(self.getTestDataDir(), 'CALIB'),
-                                                      mode='r')
-            self.butler = dafPersist.Butler(inputs=(dataRepoArgs, calibRepoArgs))
-        elif 'swift' == initMode: # swift repos
-            dataRepoArgs = dafPersist.RepositoryArgs(cfgRoot='swift://npease_testdata_cfht/testdata_cfht/DATA',
-                                                     mode='r')
-            calibRepoArgs = dafPersist.RepositoryArgs(cfgRoot='swift://npease_testdata_cfht/testdata_cfht/CALIB',
-                                                      mode='r')
-            self.butler = dafPersist.Butler(inputs=(dataRepoArgs, calibRepoArgs))
+        elif 'local' == initMode:  # local Repo
+            datadir = self.getTestDataDir()
+            self.repoPath = os.path.join(datadir, "DATA")
+            self.calibPath = os.path.join(datadir, "CALIB")
+            self.butler = dafPersist.Butler(
+                inputs={'root': self.repoPath,
+                        'mapperArgs': {'calibRoot': self.calibPath}})
+        elif 'swift' == initMode:  # swift repos
+            self.butler = dafPersist.Butler(
+                inputs='swift://nebula.ncsa.illinois.edu:5000/v2.0/LSST/npease_testdata_cfht_data')
         else:
             raise RuntimeError('unhandled init mode')
-
 
         self.size = (2112, 4644)
         self.dataId = {'visit': 1038843}
