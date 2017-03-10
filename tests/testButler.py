@@ -62,7 +62,7 @@ class GetRawTestCase(lsst.utils.tests.TestCase):
         # todo I don't think the cfgRoot should have to be specified, but there's a bug if the arg to the
         # RepositoryArgs is "root='swift...'"; it finds the DATA args for the CALIB root, I think in a local
         # cache.
-        initMode = 'swift'
+        initMode = 'local'
 
         if 'old' == initMode:
             datadir = self.getTestDataDir()
